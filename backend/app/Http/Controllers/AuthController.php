@@ -2,42 +2,61 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+
+
     public function login(Request $request)
     {
-        // 1. Validate the structure of incoming inputs
         $request->validate([
             'username' => 'required|string',
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        // 2. Strict match check for exactly your credentials
-        $isAdmin = $request->username === 'Admin';
-        $isEmail = $request->email === 'yeabsirawondwosen27@gmail.com';
-        $isPassword = $request->password === 'password123';
+        $user = User::where('email', $request->email)->first();
 
-        if ($isAdmin && $isEmail && $isPassword) {
-            
-            // Generate a token for React to store (using basic secure random token or Sanctum)
-            // For a single hardcoded user, a random token string works instantly for front-back communication
-            $token = bin2hex(random_bytes(32)); 
-
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
-                'token' => $token,
-                'user' => [
-                    'name' => 'Yanol Digital',
-                    'username' => 'Admin',
-                    'email' => 'yeabsirawondwosen27@gmail.com',
-                ]
+                'message' => 'Invalid credentials.'
+            ], 401);
+        }
+
+        // Validate custom username parameter matching criteria
+        if ($request->username !== 'Admin') {
+            return response()->json([
+                'message' => 'Invalid administrative username configuration.'
+            ], 401);
+        }
+
+        // Issue Sanctum token string
+        $token = $user->createToken('admin')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+            ]
+        ], 200);
+    }
+
+    public function logout(Request $request)
+    {
+        // Safely wipe out current access token authorization metrics
+        if ($request->user()) {
+            $request->user()->currentAccessToken()->delete();
+            return response()->json([
+                'message' => 'Successfully logged out'
             ], 200);
         }
 
-        // 3. Fail immediately if anything does not match perfectly
-        return response()->json(['message' => 'Invalid credentials.'], 401);
+        return response()->json([
+            'message' => 'No active user session'
+        ], 401);
     }
 }

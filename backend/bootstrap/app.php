@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
    ->withMiddleware(function (Middleware $middleware) {
     // If using Laravel 11's default stateful features:
-    $middleware->statefulApi();
+
 })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('admin_token');
         const savedUser = localStorage.getItem('user');
         if (token && savedUser) {
             setIsAuthenticated(true);
@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     const logout = () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('admin_token');
         localStorage.removeItem('user');
         setIsAuthenticated(false);
         setUser(null);
