@@ -20,7 +20,7 @@ class QuoteController extends Controller
 
         // 2. Use Eloquent to persist the validated request to MySQL
         $quote = Quote::create($validatedData);
-
+        $pendingAmount = \App\Models\Quote::where('status', 'pending')->sum('amount');
         // 3. Return a clean HTTP 201 response back to your React frontend UI
         return response()->json([
             'success' => true,
@@ -28,4 +28,28 @@ class QuoteController extends Controller
             'data'    => $quote
         ], 201);
     }
+
+
+
+
+
+    // Add this method inside your QuoteController class
+public function index()
+{
+    try {
+        // Fetch all quotes, sorted by the newest record first
+        $quotes = Quote::latest()->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $quotes
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to fetch quotes: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

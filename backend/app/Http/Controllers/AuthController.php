@@ -8,16 +8,14 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-
-
     public function login(Request $request)
     {
         $request->validate([
-            'username' => 'required|string',
             'email' => 'required|email',
-            'password' => 'required|string',
+            'password' => 'required',
         ]);
 
+        // Find user by email field
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -26,37 +24,12 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Validate custom username parameter matching criteria
-        if ($request->username !== 'Admin') {
-            return response()->json([
-                'message' => 'Invalid administrative username configuration.'
-            ], 401);
-        }
-
-        // Issue Sanctum token string
-        $token = $user->createToken('admin')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'token' => $token,
-            'user' => [
-                'name' => $user->name,
-                'email' => $user->email,
-            ]
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user
         ], 200);
-    }
-
-    public function logout(Request $request)
-    {
-        // Safely wipe out current access token authorization metrics
-        if ($request->user()) {
-            $request->user()->currentAccessToken()->delete();
-            return response()->json([
-                'message' => 'Successfully logged out'
-            ], 200);
-        }
-
-        return response()->json([
-            'message' => 'No active user session'
-        ], 401);
     }
 }

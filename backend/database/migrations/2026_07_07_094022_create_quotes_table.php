@@ -8,15 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('quotes', function (Blueprint $Blueprint) {
-            $Blueprint->id();
-            $Blueprint->string('client_name');
-            $Blueprint->string('company_name')->nullable();
-            $Blueprint->string('email');
-            $Blueprint->string('phone')->nullable();
-            $Blueprint->text('project_details');
-            $Blueprint->string('status')->default('Pending'); // Default status for new forms
-            $Blueprint->timestamps(); // Generates created_at and updated_at automatically
+        Schema::create('quotes', function (Blueprint $table) {
+            $table->id();
+            $table->string('client_name');
+            $table->string('company_name')->nullable();
+            $table->string('email');
+            $table->string('phone')->nullable();
+            $table->text('project_details');
+            $table->string('status')->default('Pending'); 
+            $table->string('payment_status')->default('pending');
+            $table->string('payment_method')->default('cash');
+            $table->decimal('estimated_amount', 10, 2)->default(0.00); 
+            $table->timestamps(); // Generates created_at and updated_at automatically
         });
     }
 

@@ -1,18 +1,23 @@
 <?php
  
 use App\Http\Controllers\AuthController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\DashboardController;
+use Illuminate\Support\Facades\Route;
  
-// Public
+// Public Routes
 Route::post('/login', [AuthController::class, 'login']);
  
-// Protected — only reachable with a valid token from the seeded admin
+// Protected — only reachable with a valid token
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'index']);
+    
+    // Quotes endpoints
     Route::post('/quotes', [QuoteController::class, 'store']);
- 
-    // Add the rest of your admin-only API routes here.
-});
- 
+    Route::get('/quotes', [QuoteController::class, 'index']);
+}); // <-- The middleware group ends here!
+
+// Publicly accessible dashboard endpoints (Moved outside the group)
+Route::get('/dashboard-stats', [DashboardController::class, 'getDashboardStatuses']);
+Route::get('/quotes/recent', [DashboardController::class, 'getRecentQuotes']);
