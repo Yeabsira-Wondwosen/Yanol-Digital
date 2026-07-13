@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -6,29 +7,69 @@
 }
 
 @keyframes gentle-grow {
-  0%, 100% { transform: scale(1); letter-spacing: -0.02em; }
-  50% { transform: scale(1.06); letter-spacing: 0.04em; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    letter-spacing: -0.02em;
+  }
+
+  50% {
+    transform: scale(1.06);
+    letter-spacing: 0.04em;
+  }
 }
 
 @keyframes drift-a {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(22px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(22px);
+  }
 }
 
 @keyframes drift-b {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-26px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(-26px);
+  }
 }
 
 @keyframes drift-c {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(16px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(16px);
+  }
 }
 
 @keyframes fall {
-  0% { transform: translateY(0); opacity: 0; }
-  15% { opacity: 0.8; }
-  100% { transform: translateY(220px); opacity: 0; }
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(220px);
+    opacity: 0;
+  }
 }
 
 @utility animate-gentle-grow {
@@ -53,7 +94,9 @@
   animation-iteration-count: infinite;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -63,4 +106,68 @@ html, body, #root {
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0px rgba(14, 165, 233, 0.5);
+    border-color: rgba(14, 165, 233, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgba(14, 165, 233, 0);
+    border-color: rgba(14, 165, 233, 1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(120%) scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(120%) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@utility animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-slide-out-right {
+  animation: slide-out-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes countdown-shrink {
+  from {
+    width: 100%;
+  }
+
+  to {
+    width: 0%;
+  }
+}
+
+@utility animate-countdown {
+  animation: countdown-shrink 4.5s linear forwards;
 }

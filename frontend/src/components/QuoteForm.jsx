@@ -101,28 +101,71 @@ export default function QuoteForm({ onClose, onSubmitted }) {
   const [existingUrl, setExistingUrl] = useState('');
   const [referralSource, setReferralSource] = useState('');
   const [requirement, setRequirement] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
+    setSubmitError(null);
 
-    // Mapping your explicit local state values straight to your Laravel expected payload fields
+    const formattedDetails = `
+=== Detailed Requirements ===
+${requirement}
+
+=== Project Specs ===
+- Project Type: ${projectType}
+- Budget Range: ${budget}
+- Expected Timeline: ${timeline}
+- Urgency Level/Priority: ${priority}
+- Industry Sector: ${industry}
+- Business Profile Type: ${businessProfile}
+- Referral Track: ${referralSource || 'Direct'}
+- Existing Website URL: ${existingUrl || 'None'}
+- Preferred Contact: ${contactMethod}
+    `.trim();
+
+    // Send every field individually (not just the formatted blob) so
+    // Clients.jsx can render each piece of info on its own, plus a
+    // human-readable summary for quick scanning.
     const payload = {
       client_name: fullName,
       company_name: companyName,
-      email: email,
-      phone: phone,
-      project_details: requirement
+      email,
+      phone,
+      business_profile: businessProfile,
+      industry,
+      project_type: projectType,
+      budget,
+      timeline,
+      priority,
+      contact_method: contactMethod,
+      existing_url: existingUrl,
+      referral_source: referralSource,
+      requirement,
+      project_details: formattedDetails,
+      status: 'pending', // every new quote starts as pending
     };
 
     try {
+      // api.js already attaches the Bearer token via its request
+      // interceptor (reads "admin_token" from localStorage), so no
+      // need to build the Authorization header manually here.
       const response = await api.post('/quotes', payload);
-      
-      if (response.data.success) {
-        onSubmitted(fullName); 
+
+      if (response.data?.success || response.status === 200 || response.status === 201) {
+        onSubmitted(response.data.data);
       }
     } catch (error) {
       console.error("Database submission failed:", error.response?.data || error.message);
-      alert("Failed to save to database. Check terminal logs.");
+
+      if (error.response?.status === 401) {
+        setSubmitError("Session expired or unauthorized. Please log out and sign back into the admin system.");
+      } else {
+        setSubmitError(error.response?.data?.message || 'Failed to save data. Check connection configs.');
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -147,6 +190,12 @@ export default function QuoteForm({ onClose, onSubmitted }) {
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-6 py-6 lg:px-10">
           <div className="mx-auto max-w-5xl space-y-8">
+            {submitError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {submitError}
+              </div>
+            )}
+
             {/* Client info */}
             <section>
               <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-sky-700">
@@ -283,8 +332,12 @@ export default function QuoteForm({ onClose, onSubmitted }) {
               <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
                 Cancel
               </button>
-              <button type="submit" className="rounded-xl bg-gradient-to-r from-sky-400 to-sky-700 px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:opacity-90">
-                Save Quote
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-xl bg-gradient-to-r from-sky-400 to-sky-700 px-6 py-2.5 text-sm font-bold text-white shadow-md transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? 'Saving...' : 'Save Quote'}
               </button>
             </div>
           </div>

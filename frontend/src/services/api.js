@@ -1,10 +1,12 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://127.0.0.1:8000/api", // change to your Laravel API URL
+    baseURL: "http://127.0.0.1:8000/api", // Laravel API base
     headers: {
         Accept: "application/json",
     },
+    // If you're using Sanctum with cookies, keep this:
+    // withCredentials: true,
 });
 
 // Attach the stored token (if any) to every request
@@ -22,20 +24,26 @@ api.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem("admin_token");
+            // Optionally redirect here if you want global handling
+            // window.location.href = '/login';
         }
         return Promise.reject(error);
     }
 );
-async function checkAuthentication() {
+
+// Use your configured baseURL here: DO NOT hardcode full URL
+export async function checkAuthentication() {
     try {
-        // 1. Try to hit your protected Laravel route
-        const response = await api.get('http://localhost:8000');
-        // If successful, the user is authenticated. Let them stay on the dashboard!
+        // hit a protected route that requires auth, e.g. /me
+        const response = await api.get("/me");
+        // If successful, the user is authenticated.
+        return response.data;
     } catch (error) {
-        // 2. If Laravel responds with a 401 Unauthorized, kick them to login
         if (error.response && error.response.status === 401) {
-            window.location.href = '/login'; // Or use your framework's router.push('/login')
+            // Not authenticated → send to login
+            window.location.href = "/login";
         }
+        throw error;
     }
 }
 

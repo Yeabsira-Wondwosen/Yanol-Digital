@@ -1,9 +1,10 @@
+// src/components/Login.jsx
 import React, { useState } from 'react';
 import api from '../services/api';
+import { Lock, User, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function Login({ onLoginSuccess }) {
-    const [username, setUsername] = useState('');
-    const [email, setEmail] = useState('');
+    const [loginVal, setLoginVal] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -13,8 +14,8 @@ export default function Login({ onLoginSuccess }) {
         setError('');
         setLoading(true);
         try {
-            const response = await api.post('/login', { username, email, password });
-            localStorage.setItem('admin_token', response.data.token);
+            const response = await api.post('/login', { login: loginVal, password });
+            localStorage.setItem('admin_token', response.data.access_token);
             localStorage.setItem('user', JSON.stringify(response.data.user));
             if (onLoginSuccess) onLoginSuccess();
         } catch (err) {
@@ -25,64 +26,82 @@ export default function Login({ onLoginSuccess }) {
     };
 
     return (
-        <div className="flex min-h-svh items-center justify-center bg-[radial-gradient(circle_at_center,#1a1a2e_0%,#0f0f16_100%)] px-4">
-            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-10 shadow-2xl backdrop-blur-xl">
-                <div className="mb-7 text-center">
-                    <h2 className="animate-gentle-grow text-3xl font-bold tracking-tight text-white">
+        <div className="flex h-screen w-screen items-center justify-center bg-slate-950 font-sans antialiased selection:bg-sky-500/10 selection:text-sky-400">
+            {/* Ambient Background Glows */}
+            <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-sky-500/5 blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
+
+            {/* Symmetrical Fixed-Ratio Container */}
+            <div className="relative w-full max-w-md mx-4 rounded-2xl border border-slate-800/80 bg-slate-900/40 p-10 shadow-2xl backdrop-blur-xl transition-all duration-300">
+
+                {/* Header Block */}
+                <div className="mb-8 text-center">
+                    <h2 className="bg-gradient-to-r from-white via-sky-400 to-indigo-400 bg-clip-text text-3xl font-black tracking-tight text-transparent">
                         Yanol Digital
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">Administration only</p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                        Administration Node
+                    </p>
                 </div>
 
+                {/* Error Box matching perfectly with spacing */}
                 {error && (
-                    <div className="mb-5 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-400">
-                        {error}
+                    <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3.5 text-sm font-medium text-red-400 animate-fadeIn">
+                        <AlertCircle size={18} className="shrink-0" />
+                        <p className="truncate">{error}</p>
                     </div>
                 )}
 
-                <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium uppercase tracking-wider text-slate-400">Username</label>
-                        <input
-                            type="text"
-                            placeholder="e.g., Admin"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            className="rounded-lg border border-[#27273a] bg-[#14141f] px-4 py-3 text-white outline-none transition focus:border-sky-500"
-                        />
+                {/* Input Fields & Actions Engine */}
+                <form onSubmit={handleLogin} className="flex flex-col gap-5">
+
+                    {/* Identity Slot */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                            Username or Email
+                        </label>
+                        <div className="relative flex items-center">
+                            <User size={16} className="absolute left-4 text-slate-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="admin or email@example.com"
+                                value={loginVal}
+                                onChange={(e) => setLoginVal(e.target.value)}
+                                required
+                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-3 pl-11 pr-4 text-sm font-semibold text-white placeholder-slate-600 outline-none ring-sky-500/20 transition focus:border-sky-500/80 focus:bg-slate-950 focus:ring-4"
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium uppercase tracking-wider text-slate-400">Email Address</label>
-                        <input
-                            type="email"
-                            placeholder="yanoldigital@gmail.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            className="rounded-lg border border-[#27273a] bg-[#14141f] px-4 py-3 text-white outline-none transition focus:border-sky-500"
-                        />
+                    {/* Secure Password Slot */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                            Password
+                        </label>
+                        <div className="relative flex items-center">
+                            <Lock size={16} className="absolute left-4 text-slate-500 transition-colors" />
+                            <input
+                                type="password"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-3 pl-11 pr-4 text-sm font-semibold text-white placeholder-slate-600 outline-none ring-sky-500/20 transition focus:border-sky-500/80 focus:bg-slate-950 focus:ring-4"
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium uppercase tracking-wider text-slate-400">Password</label>
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="rounded-lg border border-[#27273a] bg-[#14141f] px-4 py-3 text-white outline-none transition focus:border-sky-500"
-                        />
-                    </div>
-
+                    {/* Uniform Interactive Trigger Button */}
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 rounded-lg bg-white py-3.5 text-sm font-semibold text-[#0f0f16] transition hover:bg-slate-100 disabled:opacity-60"
+                        className="mt-3 flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 text-sm font-bold text-white shadow-lg shadow-sky-500/10 transition-all duration-200 hover:from-sky-400 hover:to-sky-500 hover:shadow-sky-500/20 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
                     >
-                        {loading ? 'Authenticating...' : 'Sign In'}
+                        {loading ? (
+                            <Loader2 size={18} className="animate-spin text-white" />
+                        ) : (
+                            'Sign In to Dashboard'
+                        )}
                     </button>
                 </form>
             </div>
