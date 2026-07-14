@@ -13,7 +13,6 @@ import Clients from './Clients';
 import SettingsView from './SettingsView';
 import ProjectDetailView from './ProjectDetailView';
 import Toast from './Toast';
-import Yanol from './Yanol';
 import ManageQuotes from './ManageQuotes';
 
 const MOCK_NOTIFICATIONS = [
@@ -59,7 +58,51 @@ function playNotificationSound() {
 
 export default function Dashboard({ userName: initialUserName, setIsAuthenticated }) {
     const [userName, setUserName] = useState(initialUserName || 'Admin');
-    const [view, setView] = useState('yanol');
+    const [view, setView] = useState('overview');
+
+    // ==========================================
+    // DYNAMIC VIEW STATE LOGIC (CLOSE ON BACKDROP CLICK)
+    // ==========================================
+    const [yanolSubView, setYanolSubView] = useState('technique');
+    const viewContentRef = useRef(null); // Attach to your rendering view card container
+
+    // Reset inner sub-views whenever navigating away from Yanol Tech
+    useEffect(() => {
+        if (view !== 'yanol') {
+            setYanolSubView('technique');
+        }
+    }, [view]);
+
+    useEffect(() => {
+        function handleGlobalClick(event) {
+            // If the user is currently working inside Yanol, and clicked outside of the dashboard card elements
+            if (view === 'yanol' && yanolSubView !== 'technique') {
+
+                // 1. Skip if clicking inside active form controls, select dropdown overlay tags, or sidebar
+                if (
+                    event.target.closest('select') ||
+                    event.target.closest('input') ||
+                    event.target.closest('button') ||
+                    event.target.closest('[role="listbox"]') ||
+                    event.target.closest('[role="option"]') ||
+                    event.target.closest('.select-popover') ||
+                    event.target.closest('aside') // Avoid sidebar menu navigation triggers
+                ) {
+                    return;
+                }
+
+                // 2. If the click fell outside the active content container card, trigger the toggle back
+                if (viewContentRef.current && !viewContentRef.current.contains(event.target)) {
+                    setYanolSubView('technique');
+                }
+            }
+        }
+
+        document.addEventListener('mousedown', handleGlobalClick);
+        return () => document.removeEventListener('mousedown', handleGlobalClick);
+    }, [view, yanolSubView]);
+    // ==========================================
+
     const [selectedProject, setSelectedProject] = useState(null);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
     const [quoteCount, setQuoteCount] = useState(6);
@@ -137,101 +180,124 @@ export default function Dashboard({ userName: initialUserName, setIsAuthenticate
     const renderActiveView = () => {
         if (selectedProject) {
             return (
-                <ProjectDetailView
-                    project={selectedProject}
-                    onBack={() => setSelectedProject(null)}
-                    onDone={handleProjectDone}
-                />
+                <div ref={viewContentRef}>
+                    <ProjectDetailView
+                        project={selectedProject}
+                        onBack={() => setSelectedProject(null)}
+                        onDone={handleProjectDone}
+                    />
+                </div>
             );
         }
 
         switch (view) {
             case 'yanol':
-                return <Yanol />;
+                return (
+                    <div ref={viewContentRef} className="inline-block w-full">
+                        <Yanol subView={yanolSubView} setSubView={setYanolSubView} />
+                    </div>
+                );
             case 'manage-quotes':
                 return (
-                    <ManageQuotes 
-                        refreshTrigger={refreshTrigger}
-                        setRefreshTrigger={setRefreshTrigger}
-                    />
+                    <div ref={viewContentRef}>
+                        <ManageQuotes
+                            refreshTrigger={refreshTrigger}
+                            setRefreshTrigger={setRefreshTrigger}
+                        />
+                    </div>
                 );
             case 'overview':
                 return (
-                    <Overview
-                        userName={userName}
-                        quoteCount={quoteCount}
-                        acceptedCount={acceptedCount}
-                        prevQuoteCount={prevQuoteCount}
-                        prevAcceptedCount={prevAcceptedCount}
-                        onNewQuote={() => setView('quote')}
-                        onSelectProject={setSelectedProject}
-                        onViewClients={() => setView('clients')}
-                        searchTerm={searchTerm}
-                    />
+                    <div ref={viewContentRef}>
+                        <Overview
+                            userName={userName}
+                            quoteCount={quoteCount}
+                            acceptedCount={acceptedCount}
+                            prevQuoteCount={prevQuoteCount}
+                            prevAcceptedCount={prevAcceptedCount}
+                            onNewQuote={() => setView('quote')}
+                            onSelectProject={setSelectedProject}
+                            onViewClients={() => setView('clients')}
+                            searchTerm={searchTerm}
+                        />
+                    </div>
                 );
             case 'quote':
                 return (
-                    <QuoteForm
-                        onClose={() => setView('overview')}
-                        onSubmitted={(newQuote) => {
-                            setQuoteCount((c) => c + 1);
-                            setNewQuoteId(newQuote.id);
-                            setRefreshTrigger((prev) => prev + 1);
-                            setClients((prevClients) => [newQuote, ...prevClients]);
-                            setNotifications(prevNotif => [
-                                {
-                                    id: Date.now(),
-                                    title: 'New quote request',
-                                    body: `${newQuote.client_name} submitted a request for ${newQuote.company_name || 'Individual'}.`,
-                                    time: 'Just now',
-                                    unread: true
-                                },
-                                ...prevNotif
-                            ]);
+                    <div ref={viewContentRef}>
+                        <QuoteForm
+                            onClose={() => setView('overview')}
+                            onSubmitted={(newQuote) => {
+                                setQuoteCount((c) => c + 1);
+                                setNewQuoteId(newQuote.id);
+                                setRefreshTrigger((prev) => prev + 1);
+                                setClients((prevClients) => [newQuote, ...prevClients]);
+                                setNotifications(prevNotif => [
+                                    {
+                                        id: Date.now(),
+                                        title: 'New quote request',
+                                        body: `${newQuote.client_name} submitted a request for ${newQuote.company_name || 'Individual'}.`,
+                                        time: 'Just now',
+                                        unread: true
+                                    },
+                                    ...prevNotif
+                                ]);
 
-                            triggerNotification(newQuote);
-                            setView('clients');
-                        }}
-                    />
+                                triggerNotification(newQuote);
+                                setView('clients');
+                            }}
+                        />
+                    </div>
                 );
             case 'clients':
                 return (
-                    <Clients
-                        clients={clients}         // 👈 Pass state down so it shares database records
-                        setClients={setClients}   // 👈 Pass setter so Clients view can update it
-                        searchTerm={searchTerm}
-                        refreshTrigger={refreshTrigger}
-                        newQuoteId={newQuoteId}
-                        clearNewQuoteId={() => setNewQuoteId(null)}
-                    />
+                    <div ref={viewContentRef}>
+                        <Clients
+                            clients={clients}
+                            setClients={setClients}
+                            searchTerm={searchTerm}
+                            refreshTrigger={refreshTrigger}
+                            newQuoteId={newQuoteId}
+                            clearNewQuoteId={() => setNewQuoteId(null)}
+                        />
+                    </div>
                 );
             case 'settings':
                 return (
-                    <SettingsView
-                        userName={userName}
-                        setUserName={setUserName}
-                        showToast={showToast}
-                    />
+                    <div ref={viewContentRef}>
+                        <SettingsView
+                            userName={userName}
+                            setUserName={setUserName}
+                            showToast={showToast}
+                        />
+                    </div>
                 );
             case 'reports':
-                return <Reports clients={clients} />; // 👈 FIXED: Changed 'quotes' to 'clients'
+                return (
+                    <div ref={viewContentRef}>
+                        <Reports clients={clients} />
+                    </div>
+                );
 
             default:
                 return (
-                    <Overview
-                        userName={userName}
-                        quoteCount={quoteCount}
-                        acceptedCount={acceptedCount}
-                        prevQuoteCount={prevQuoteCount}
-                        prevAcceptedCount={prevAcceptedCount}
-                        onNewQuote={() => setView('quote')}
-                        onSelectProject={setSelectedProject}
-                        onViewClients={() => setView('clients')}
-                        searchTerm={searchTerm}
-                    />
+                    <div ref={viewContentRef}>
+                        <Overview
+                            userName={userName}
+                            quoteCount={quoteCount}
+                            acceptedCount={acceptedCount}
+                            prevQuoteCount={prevQuoteCount}
+                            prevAcceptedCount={prevAcceptedCount}
+                            onNewQuote={() => setView('quote')}
+                            onSelectProject={setSelectedProject}
+                            onViewClients={() => setView('clients')}
+                            searchTerm={searchTerm}
+                        />
+                    </div>
                 );
         }
     }
+
     return (
         <DashboardLayout
             expanded={sidebarExpanded}
@@ -249,7 +315,13 @@ export default function Dashboard({ userName: initialUserName, setIsAuthenticate
             notifications={notifications}
             onMarkAllRead={handleMarkAllRead}
         >
-            {renderActiveView()}
+            {/* This wrapper renders the active dashboard component cleanly.
+               Clicking anywhere in the empty margins outside 'viewContentRef' 
+               will safely trigger the return toggling.
+            */}
+            <div className="min-h-full w-full">
+                {renderActiveView()}
+            </div>
 
             {/* Real-time high-fidelity animated Quote Notification Popup */}
             {activeNotification && (

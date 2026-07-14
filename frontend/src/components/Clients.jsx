@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api.js';
+import DeleteConfirmModal from './DeleteConfirmModal';
 import {
   Mail, Phone, Building, Layers, Loader2, AlertCircle, Users,
   ChevronDown, Clock3, CheckCircle2, Trash2, RotateCcw, Calendar,
@@ -43,6 +44,9 @@ function StatusBadge({ status }) {
 }
 
 export default function Clients({ clients = [], setClients, searchTerm = '', refreshTrigger, newQuoteId, clearNewQuoteId }) {
+  // --- CUSTOM STATE FOR DELETE CONFIRMATION MODAL ---
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [quoteToDelete, setQuoteToDelete] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -57,14 +61,15 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
       const response = await api.get('/quotes');
       const quotes = Array.isArray(response.data) ? response.data : (response.data?.data || []);
 
-      // Group flat quote records into unique clients.
       const clientMap = new Map();
-      quotes.forEach((q) => {
-        const key = q.email || q.client_name || q.name;
-        if (!key) return;
+      quotes.forEach((q, index) => {
+        // Build a strict unique key for grouping
+        const key = q.email || q.client_name || q.name || `anonymous-${index}`;
+
         if (!clientMap.has(key)) {
           clientMap.set(key, {
-            id: q.client_id || key,
+            // Assign a guaranteed unique ID for state tracking
+            id: q.client_id || `client-${index}-${q.id}`,
             name: q.client_name || q.name || 'Anonymous User',
             company: q.company_name || q.company || '',
             email: q.email || '',
@@ -87,6 +92,7 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
           requirement: q.requirement,
           project_details: q.project_details,
           created_at: q.created_at,
+          client_name: q.client_name || q.name || 'Anonymous User'
         });
       });
 
@@ -99,7 +105,6 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
         setClients(grouped);
       }
 
-      // Auto-expand and scroll to new quote card if provided
       if (newQuoteId) {
         const clientWithNewQuote = grouped.find(c => c.quotes.some(q => q.id === newQuoteId));
         if (clientWithNewQuote) {
@@ -111,7 +116,6 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
             }
           }, 300);
 
-          // Clear newQuoteId in parent state after 5 seconds to dismiss glow
           setTimeout(() => {
             if (clearNewQuoteId) clearNewQuoteId();
           }, 5000);
@@ -152,17 +156,21 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
     }
   };
 
-  const deleteQuote = async (quoteId) => {
-    if (!window.confirm('Permanently delete this quote? This cannot be undone.')) return;
-    setUpdatingId(quoteId);
+  const handleConfirmDelete = async () => {
+    if (!quoteToDelete) return;
+    const targetId = quoteToDelete.id;
+
+    setUpdatingId(targetId);
+    setDeleteModalOpen(false);
+
     try {
-      await api.delete(`/quotes/${quoteId}`);
+      await api.delete(`/quotes/${targetId}`);
       if (setClients) {
         setClients((prev) =>
           (prev || [])
             .map((client) => ({
               ...client,
-              quotes: (client.quotes || []).filter((q) => q.id !== quoteId),
+              quotes: (client.quotes || []).filter((q) => q.id !== targetId),
             }))
             .filter((client) => (client.quotes || []).length > 0)
         );
@@ -172,10 +180,10 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
       alert(err.response?.data?.message || 'Could not delete quote.');
     } finally {
       setUpdatingId(null);
+      setQuoteToDelete(null);
     }
   };
 
-  // Safe Guard Wrapper
   const safeClientsState = Array.isArray(clients) ? clients : [];
 
   const filteredClients = useMemo(() => {
@@ -197,7 +205,6 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
       });
   }, [safeClientsState, searchTerm, statusFilter]);
 
-  // 🌟 FIXED LINE 192: Fallback to safe array prevents reading properties of undefined
   const statusCounts = useMemo(() => {
     const counts = { all: 0, pending: 0, approved: 0, deleted: 0 };
     safeClientsState.forEach((c) => {
@@ -287,17 +294,20 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
 
       {/* Grid Layout */}
       <div className="grid gap-5 lg:grid-cols-2">
-        {filteredClients.map((client) => {
-          const isExpanded = expandedClient === client.id;
+        {filteredClients.map((client, index) => {
+          // Use index fallback to ensure matching state elements do not share keys
+          const cleanId = client.id || `client-row-${index}`;
+          const isExpanded = expandedClient === cleanId;
+
           return (
             <div
-              key={client.id}
+              key={cleanId}
               className="group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md hover:border-sky-200 transition-all duration-300 relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-[3px] bg-sky-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
 
               <button
-                onClick={() => setExpandedClient(isExpanded ? null : client.id)}
+                onClick={() => setExpandedClient(isExpanded ? null : cleanId)}
                 className="w-full text-left"
               >
                 <div className="flex items-start justify-between gap-2 mb-4">
@@ -356,7 +366,10 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
                       quote={q}
                       updating={updatingId === q.id}
                       onUpdateStatus={(status) => updateQuoteStatus(q.id, status)}
-                      onDelete={() => deleteQuote(q.id)}
+                      onDelete={() => {
+                        setQuoteToDelete(q);
+                        setDeleteModalOpen(true);
+                      }}
                       newQuoteId={newQuoteId}
                     />
                   ))}
@@ -374,6 +387,17 @@ export default function Clients({ clients = [], setClients, searchTerm = '', ref
           </div>
         )}
       </div>
+
+      {/* --- REUSABLE DELETE CONFIRMATION MODAL COMPONENT --- */}
+      <DeleteConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setQuoteToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        clientName={quoteToDelete?.client_name}
+      />
     </div>
   );
 }

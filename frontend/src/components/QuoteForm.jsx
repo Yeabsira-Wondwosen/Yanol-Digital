@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api.js';
 import {
   X, ChevronDown, Smartphone, Globe2, ShoppingCart, GraduationCap,
   LayoutDashboard, Palette, Server, Wrench, Building2, Briefcase,
-  DollarSign, Clock, Phone, Mail, MessageCircle, Link2, Flag
+  DollarSign, Clock, Phone, Mail, MessageCircle, Link2, Flag, Check
 } from 'lucide-react';
 
 const PROJECT_TYPES = [
@@ -48,33 +48,63 @@ const CONTACT_METHODS = [
   { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
 ];
 
-function Dropdown({ label, icon: Icon, value, options, onChange, renderOption }) {
-  const [open, setOpen] = useState(false);
+// Presets from your uploaded mockup
+const PRESET_FEATURES = [
+  'Contact form', 'WhatsApp integration', 'Blog',
+  'SEO', 'E-commerce', 'Booking system',
+  'Admin dashboard', 'Payment integration', 'Multi-language',
+  'AI assistant / chatbot', 'Customer account area', 'Analytics dashboard'
+];
+
+function Dropdown({ label, icon: Icon, value, options, onChange, renderOption, id, activeDropdown, onToggle }) {
+  const containerRef = useRef(null);
+  const [openUpward, setOpenUpward] = useState(false);
+  const isOpen = activeDropdown === id;
   const selected = options.find((o) => o.value === value) || options[0];
 
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 250) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [isOpen]);
+
   return (
-    <div className="relative flex flex-col gap-1.5">
+    <div className="relative flex flex-col gap-1.5 custom-dropdown-container" ref={containerRef}>
       <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
         {Icon && <Icon size={13} />}
         {label}
       </label>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => onToggle(id)}
         className="flex w-full items-center justify-between rounded-xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-left text-sm text-slate-800 transition hover:border-sky-200 hover:bg-sky-50"
       >
         <span className="flex items-center gap-2 truncate">
           {renderOption ? renderOption(selected) : selected?.label}
         </span>
-        <ChevronDown size={16} className={`shrink-0 text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`shrink-0 text-slate-400 transition ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute top-full z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-sky-100 bg-white py-1 shadow-xl">
+
+      {isOpen && (
+        <div
+          className={`absolute left-0 z-50 max-h-56 w-full overflow-y-auto rounded-xl border border-sky-100 bg-white py-1 shadow-xl
+            ${openUpward ? 'bottom-full mb-2' : 'top-full mt-1'}
+          `}
+        >
           {options.map((opt) => (
             <button
               key={opt.value}
               type="button"
-              onClick={() => { onChange(opt.value); setOpen(false); }}
+              onClick={() => {
+                onChange(opt.value);
+                onToggle(null);
+              }}
               className={`flex w-full items-start gap-2 px-4 py-2.5 text-left text-sm transition hover:bg-sky-50 ${opt.value === value ? 'bg-sky-50 font-semibold text-sky-700' : 'text-slate-700'}`}
             >
               {renderOption ? renderOption(opt) : opt.label}
@@ -101,8 +131,32 @@ export default function QuoteForm({ onClose, onSubmitted }) {
   const [existingUrl, setExistingUrl] = useState('');
   const [referralSource, setReferralSource] = useState('');
   const [requirement, setRequirement] = useState('');
+  const [selectedFeatures, setSelectedFeatures] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.custom-dropdown-container')) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleDropdownToggle = (dropdownId) => {
+    setActiveDropdown((prev) => (prev === dropdownId ? null : dropdownId));
+  };
+
+  const handleFeatureToggle = (feature) => {
+    setSelectedFeatures((prev) =>
+      prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -110,6 +164,9 @@ export default function QuoteForm({ onClose, onSubmitted }) {
     setSubmitError(null);
 
     const formattedDetails = `
+=== Selected Features ===
+${selectedFeatures.length > 0 ? selectedFeatures.map(f => `[✓] ${f}`).join('\n') : 'No preset features selected.'}
+
 === Detailed Requirements ===
 ${requirement}
 
@@ -125,9 +182,6 @@ ${requirement}
 - Preferred Contact: ${contactMethod}
     `.trim();
 
-    // Send every field individually (not just the formatted blob) so
-    // Clients.jsx can render each piece of info on its own, plus a
-    // human-readable summary for quick scanning.
     const payload = {
       client_name: fullName,
       company_name: companyName,
@@ -142,23 +196,18 @@ ${requirement}
       contact_method: contactMethod,
       existing_url: existingUrl,
       referral_source: referralSource,
-      requirement,
+      requirement: `Selected Features: ${selectedFeatures.join(', ')}\n\nAdditional Notes:\n${requirement}`,
       project_details: formattedDetails,
-      status: 'pending', // every new quote starts as pending
+      status: 'pending',
     };
 
     try {
-      // api.js already attaches the Bearer token via its request
-      // interceptor (reads "admin_token" from localStorage), so no
-      // need to build the Authorization header manually here.
       const response = await api.post('/quotes', payload);
-
       if (response.data?.success || response.status === 200 || response.status === 201) {
         onSubmitted(response.data.data);
       }
     } catch (error) {
       console.error("Database submission failed:", error.response?.data || error.message);
-
       if (error.response?.status === 401) {
         setSubmitError("Session expired or unauthorized. Please log out and sign back into the admin system.");
       } else {
@@ -180,6 +229,7 @@ ${requirement}
         </div>
         <button
           onClick={onClose}
+          type="button"
           className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition hover:bg-sky-50 hover:text-sky-700"
           aria-label="Close form"
         >
@@ -233,15 +283,18 @@ ${requirement}
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Dropdown
+                  id="business"
                   label="Business profile"
                   icon={Building2}
                   value={businessProfile}
                   options={BUSINESS_PROFILES}
                   onChange={setBusinessProfile}
+                  activeDropdown={activeDropdown}
+                  onToggle={handleDropdownToggle}
                   renderOption={(opt) => (
                     <span>
-                      <span className="block font-medium">{opt.label}</span>
-                      <span className="block text-xs text-slate-400">{opt.desc}</span>
+                      <span className="block font-medium text-slate-800">{opt.label}</span>
+                      <span className="block text-xs text-slate-400 font-medium mt-0.5">{opt.desc}</span>
                     </span>
                   )}
                 />
@@ -251,13 +304,16 @@ ${requirement}
                   </select>
                 </Field>
                 <Dropdown
+                  id="project"
                   label="Project type"
                   icon={selectedProject?.icon}
                   value={projectType}
                   options={PROJECT_TYPES}
                   onChange={setProjectType}
+                  activeDropdown={activeDropdown}
+                  onToggle={handleDropdownToggle}
                   renderOption={(opt) => (
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 font-medium">
                       <opt.icon size={15} className="text-sky-600" />
                       {opt.label}
                     </span>
@@ -305,14 +361,49 @@ ${requirement}
               </div>
             </section>
 
-            {/* Requirements */}
+            {/* Requirements & Features Section */}
             <section>
-              <h3 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-sky-700">
-                <Flag size={15} /> Detailed Requirements
+              <h3 className="mb-1 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-sky-700">
+                <Flag size={15} /> Requirements Checklist
               </h3>
+              <p className="mb-4 text-xs text-slate-400 font-medium">Select any of the features needed for this project to structure the quote details automatically.</p>
+
+              {/* Feature grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                {PRESET_FEATURES.map((feature) => {
+                  const isChecked = selectedFeatures.includes(feature);
+                  return (
+                    <button
+                      key={feature}
+                      type="button"
+                      onClick={() => handleFeatureToggle(feature)}
+                      className={`flex items-center gap-3 w-full rounded-2xl border px-4 py-3.5 text-left text-xs font-bold tracking-wide transition-all duration-200 
+                        ${isChecked
+                          ? 'border-sky-500 bg-sky-50 text-sky-800 ring-2 ring-sky-100/50 shadow-sm'
+                          : 'border-slate-100 bg-slate-50/40 text-slate-600 hover:border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                      {/* Interactive Radio Circle indicator */}
+                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all duration-200 
+                        ${isChecked
+                          ? 'border-sky-600 bg-sky-600'
+                          : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {isChecked && <Check size={10} className="text-white stroke-[3px]" />}
+                      </span>
+                      <span>{feature}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Text notes */}
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Additional Notes / Custom Requirements
+              </label>
               <textarea
-                rows={6}
-                required
+                rows={4}
                 value={requirement}
                 onChange={(e) => setRequirement(e.target.value)}
                 placeholder="Describe animations, page count, color themes, integrations, must-have features..."

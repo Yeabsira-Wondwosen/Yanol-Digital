@@ -87,10 +87,9 @@ const DashboardLayout = ({
                 </header>
 
                 {/* Component Display Grid Engine */}
-                <main className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
-                    <div className="mx-auto max-w-7xl">
+                <main className="flex-1 overflow-y-auto px-6 py-8 md:px-12">
+                    <div className="mx-auto max-w-[1600px] w-full">
 
-                        {/* Dynamic Large Display Gradient Headline */}
                         {/* Dynamic Large Display Gradient Headline */}
                         {view?.toLowerCase() !== 'settings' && (
                             <div className="mb-8">
